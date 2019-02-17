@@ -3,8 +3,8 @@ package cmd
 import (
 	"fmt"
 	"strings"
+	"strconv"
 	"os"
-	"text/tabwriter"
 
 	"github.com/dechiad1/gaws/util"
 	"github.com/spf13/cobra"
@@ -19,8 +19,8 @@ func init() {
 	sgCmd.AddCommand(sgRemoveLocalGroup)
 	sgCmd.AddCommand(sgListGroups)
 	sgCmd.AddCommand(sgAddLocalGroup)
-  rootCmd.AddCommand(sgCmd)
-	}
+  	rootCmd.AddCommand(sgCmd)
+}
 
 var (
 //flags
@@ -152,35 +152,38 @@ sgListGroups = &cobra.Command{
 
 		fmt.Println("Security groups:")
 		for _ , group := range result.SecurityGroups {
-				w := tabwriter.NewWriter(os.Stdout, 20, 8, 0, '\t', 0)
-        name := group.GroupName
-				//GroupNameFilter defaults to true - empty string filter will match all
-				if strings.Contains(*name, GroupNameFilter) {
-					fmt.Println("*******", *name, "********")
-          ipPermission := group.IpPermissions
-					for _, permission := range ipPermission {
-						ipProtocol := permission.IpProtocol
-						ipRanges := permission.IpRanges
-						if( len(ipRanges) > 0) {
-							fmt.Fprintf(w, "\n %s\t%s", "Description", "Cidr Block")
-							fmt.Fprintf(w, "\n %s\t%s", "-----------", "----------")
-						}
+			du := util.SetHeaders("Group Id", "Source","From Port","To Port")
+        	name := *group.GroupName
+			id := *group.GroupId
+			//GroupNameFilter defaults to true - empty string filter will match all
+			if strings.Contains(name, GroupNameFilter) {
+				fmt.Println("*******", name, "********")
+				ipPermission := group.IpPermissions
+				//ipPermission - top level object that contains the useful data for each ip rule
+				for _, permission := range ipPermission {
+					ipProtocol := *permission.IpProtocol
+					//cidr blocks are found in the IpRanges object
+					ipRanges := permission.IpRanges
+					if( len(ipRanges) > 0) {
 						for _, ip := range ipRanges {
-							fmt.Fprintf(w, "\n %s\t%s",*ip.Description, *ip.CidrIp)
-						}
-
-						groupPair := permission.UserIdGroupPairs
-						if( len(groupPair) > 0) {
-							fmt.Fprintf(w, "\n %s\t%s\t%s", "Description", "Transmission Protocol", "Ingress Rule")
-							fmt.Fprintf(w, "\n %s\t%s\t%s", "-----------", "---------------------", "------------")
-						}
-						for _, pair := range groupPair {
-							fmt.Fprintf(w, "\n %s\t%s\t%s",*pair.Description, *ipProtocol, *pair.GroupId)
+							du.AddRow(id, *ip.CidrIp, strconv.FormatInt(*permission.FromPort, 10), strconv.FormatInt(*permission.ToPort, 10))
 						}
 					}
-				fmt.Fprintf(w, "\n\n")
+					//SGs rules are found in the UserIdGroupPairs object
+					groupPair := permission.UserIdGroupPairs
+					if( len(groupPair) > 0) {
+						for _, pair := range groupPair {
+							//if ipProtocol is -1, then connection is available on all ports! else - specify port range
+							if( ipProtocol == "-1") {
+								du.AddRow(id, *pair.GroupId, "All", "All")
+							} else {
+								du.AddRow(id, *pair.GroupId, strconv.FormatInt(*permission.FromPort, 10), strconv.FormatInt(*permission.ToPort, 10))
+							}
+						}
+					}
 				}
-			w.Flush()
+			}
+			du.PrintDisplay()
 		}
 	},
 }

@@ -1,13 +1,14 @@
 package cmd
 
 import (
-	"fmt"
-	"os"
-	"text/tabwriter"
+	//"fmt"
+	//"os"
+	//"text/tabwriter"
+	"strings"
 	
 	"github.com/dechiad1/gaws/util"
 	"github.com/spf13/cobra"
-  "github.com/aws/aws-sdk-go/service/ec2"
+    "github.com/aws/aws-sdk-go/service/ec2"
 )
 
 func init() {
@@ -37,31 +38,34 @@ var ec2ListCmd = &cobra.Command{
 		if err != nil {
 			panic(err)
 		}
-		w := tabwriter.NewWriter(os.Stdout, 20, 8, 0, '\t', 0)
-		fmt.Fprintf(w, "\n %s\t%s\t%s\t%s", "Name (from tag)", "Private IP", "Security Groups", "Public DNS")
-		fmt.Fprintf(w, "\n %s\t%s\t%s\t%s", "---------------", "----------", "---------------", "----------")
+
+		du := util.SetHeaders("Name (from tag)", "Private IP", "Security Groups", "Public DNS")
 		for _, reservation := range result.Reservations {
 			for _, instance := range reservation.Instances {
 				//instanceId := *instance.InstanceId
 				privateIp := *instance.PrivateIpAddress
 				publicDns := *instance.PublicDnsName
-				securityGroups := make([]string, len(instance.SecurityGroups))
+				var sg_string strings.Builder
+				r := rune(',')
 				for i, sg := range instance.SecurityGroups {
-					securityGroups[i] = *sg.GroupId
+					sg_string.WriteString(*sg.GroupId)
+					if i < (len(instance.SecurityGroups) - 1) {
+						sg_string.WriteRune(r)
+					}
 				}
 				var name string
 				for _, tag := range instance.Tags {
 					if *tag.Key == "Name" {
-							name = *tag.Value
+						name = *tag.Value
 					}
 				}
 				if name == "" {
-						name = "NONAME"
+					name = "NONAME"
 				}
-				fmt.Fprintf(w, "\n %s\t%s\t%s\t%s", name, privateIp, securityGroups, publicDns)
+				du.AddRow(name, privateIp, sg_string.String(), publicDns)
 			}
 		}
-		w.Flush()
+		du.PrintDisplay()
 	},
 }
 
