@@ -5,6 +5,14 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/ec2"
+)
+
+//defined here - used in sg, ec2 subcommands
+var (
+	svc *ec2.EC2
+	sess *session.Session
 )
 
 var rootCmd = &cobra.Command{

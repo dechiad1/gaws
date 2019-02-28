@@ -23,15 +23,21 @@ func init() {
 }
 
 var (
+
 //flags
 GroupNameFilter string
 GroupIdInput string
 GawsRuleName string = "IP by gaws - current location"
+
 //commands
 sgCmd = &cobra.Command{
 	Use: "sg",
 	Short: "sg related actions",
 	Long: "list sgs, add an ip to sg ingress, remove sg ingress.. perhaps",
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		sess = util.Auth()
+		svc = ec2.New(sess)
+	},
 	Run: func(cmd *cobra.Command, args []string) {
 
 	},
@@ -42,9 +48,6 @@ sgRemoveLocalGroup = &cobra.Command{
 	Short: "wipe the gaws rules that have been added",
 	Long: "remove all the gaws rules that have been added via and are identified with the GawsRuleName",
 	Run: func(cmd *cobra.Command, args []string) {
-		sess := util.Auth()
-		svc := ec2.New(sess)
-
 		input := &ec2.DescribeSecurityGroupsInput{
 			GroupIds: aws.StringSlice(args),
 		}
@@ -94,9 +97,6 @@ sgAddLocalGroup = &cobra.Command{
 		cidr := ip + "/32"
 		fmt.Println(ip)
 
-		sess := util.Auth()
-		svc := ec2.New(sess)
-
 		input := &ec2.AuthorizeSecurityGroupIngressInput{
 			GroupId: aws.String(GroupIdInput),
 			IpPermissions: []*ec2.IpPermission{
@@ -130,10 +130,6 @@ sgListGroups = &cobra.Command{
 	Short: "list sg groups: gwas sg list <sg a> <sg b> <etc>",
 	Long: "list sg groups associated with the region one has set as an env variable",
 	Run: func(cmd *cobra.Command, args []string) {
-
-		sess := util.Auth()
-		svc := ec2.New(sess)
-
 		input := &ec2.DescribeSecurityGroupsInput{
 			GroupIds: aws.StringSlice(args),
 		}
