@@ -9,7 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 )
 
-func Auth() (*session.Session) {
+func Auth() *session.Session {
 	profile := os.Getenv("AWS_PROFILE")
 	region := os.Getenv("AWS_DEFAULT_REGION")
 	if profile == "" {
@@ -22,10 +22,10 @@ func Auth() (*session.Session) {
 	}
 
 	fmt.Printf("loading credentials from the %s profile\n", profile)
-	
-	sess, err  := session.NewSession(&aws.Config{
-		Credentials: credentials.NewSharedCredentials("",""),
-		Region: aws.String(region),
+
+	sess, err := session.NewSession(&aws.Config{
+		Credentials: credentials.NewSharedCredentials("", ""),
+		Region:      aws.String(region),
 	})
 
 	_, err = sess.Config.Credentials.Get()

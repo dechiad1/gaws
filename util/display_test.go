@@ -1,13 +1,13 @@
 package util_test
 
 import (
-	"testing"
 	"github.com/dechiad1/gaws/util"
+	"testing"
 )
 
 func TestSetHeaders(t *testing.T) {
 	du := util.SetHeaders("carb", "arnone")
-	
+
 	if len(du.Header) != 2 {
 		t.Error("expected 2, got: ", du.Header)
 	}
@@ -20,7 +20,7 @@ func TestSetHeaders(t *testing.T) {
 
 func TestAddRow(t *testing.T) {
 	du := util.SetHeaders("don", "miguel", "the", "conquistador")
-	result := du.AddRow("1","2","3","4")
+	result := du.AddRow("1", "2", "3", "4")
 
 	if !result {
 		t.Error("expected true response from valid add")
@@ -41,7 +41,7 @@ func TestAddRow(t *testing.T) {
 
 func TestAddRow_false(t *testing.T) {
 	du := util.SetHeaders("don", "miguel", "the", "conquistador")
-	result := du.AddRow("1","2","3","4","5")
+	result := du.AddRow("1", "2", "3", "4", "5")
 
 	if result {
 		t.Error("expected false response from invalid add")
@@ -58,5 +58,3 @@ func TestPrintDisplay(t * testing.T) {
 	du.PrintDisplay()
 }
 */
-
-

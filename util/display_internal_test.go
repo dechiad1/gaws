@@ -6,8 +6,8 @@ import (
 
 func TestSetColumnBorder(t *testing.T) {
 	du := SetHeaders("don", "miguel", "the", "conquistador")
-	du.AddRow("1","20","3","muuust")
-	du.AddRow("crust","2","caaarb","4")
+	du.AddRow("1", "20", "3", "muuust")
+	du.AddRow("crust", "2", "caaarb", "4")
 	du.setColumnBorder()
 
 	if du.Column_border != 6 {
@@ -24,7 +24,7 @@ func TestBuildFmtString(t *testing.T) {
 }
 
 func TestCreateInters(t *testing.T) {
-	s := []string {"afasdf","asfasd"}
+	s := []string{"afasdf", "asfasd"}
 	i := createInters(s)
 
 	if len(i) != len(s) {
@@ -32,7 +32,7 @@ func TestCreateInters(t *testing.T) {
 	}
 
 	//test that each item in the []interface{} contains a concrete value of type string
-	for k,v := range i {
+	for k, v := range i {
 		_, ok := v.(string)
 		if !ok {
 			t.Error("expecting all elements converted can be asserted to strings. element of index [1] cant: ", k, v)
@@ -41,13 +41,12 @@ func TestCreateInters(t *testing.T) {
 }
 
 func TestCreateHeaderBorders(t *testing.T) {
-	s := []string {"11111", "222222"}
+	s := []string{"11111", "222222"}
 	b := createHeaderBorders(s)
 
-	for k:=0; k<len(s); k ++ {
+	for k := 0; k < len(s); k++ {
 		if len(s[k]) != len(b[k]) {
-			t.Error("expecting equal length strings for input and output but didnt get that for index",k)
+			t.Error("expecting equal length strings for input and output but didnt get that for index", k)
 		}
 	}
 }
-

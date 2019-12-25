@@ -1,11 +1,11 @@
 package util
 
 import (
-	"fmt"
-	"os"
-	"net/http"
-  "io/ioutil"
 	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"net/http"
+	"os"
 )
 
 type Ipify struct {
@@ -22,5 +22,5 @@ func GetPublicIp() string {
 	var ipaddr Ipify
 	json.Unmarshal(body, &ipaddr)
 
-  return ipaddr.Ip
+	return ipaddr.Ip
 }
