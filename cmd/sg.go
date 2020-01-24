@@ -2,19 +2,22 @@ package cmd
 
 import (
 	"fmt"
+	"os"
+	"strconv"
+	"strings"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/dechiad1/gaws/util"
 	"github.com/spf13/cobra"
-	"os"
-	"strconv"
 )
 
 func init() {
 	sgListGroups.PersistentFlags().StringVarP(&GroupNameFilter, "filter", "f", "", "filter sg based on if the value of this flag is in the name of the group")
-	sgAddLocalGroup.PersistentFlags().StringVarP(&GroupIdInput, "group", "g", "", "group id of sg to add rule to")
+	sgAddLocalGroup.PersistentFlags().StringVarP(&GroupIDInput, "group", "g", "", "group id of sg to add rule to")
+	sgAddLocalGroup.PersistentFlags().StringVarP(&cidrRange, "cidrRange", "r", "", "cidr range of ip to add rule for")
 	sgCmd.AddCommand(sgRemoveLocalGroup)
 	sgCmd.AddCommand(sgListGroups)
 	sgCmd.AddCommand(sgAddLocalGroup)
@@ -23,10 +26,14 @@ func init() {
 
 var (
 
-	//flags
+	//GroupNameFilter is used to filter the returned security groups by name
 	GroupNameFilter string
-	GroupIdInput    string
-	GawsRuleName    string = "IP by gaws - current location"
+	//GroupIDInput is the name of the group to add a security group ingress rule to
+	GroupIDInput string
+	//cidrRange is an optional flag to modify the range of the cidr for the rule that will be added to the security group. rule is based off of users IP.
+	cidrRange string
+	//GawsRuleName is used as a description for the rule
+	GawsRuleName string = "IP by gaws - current location"
 )
 
 //commands
@@ -87,51 +94,67 @@ var sgRemoveLocalGroup = &cobra.Command{
 var sgAddLocalGroup = &cobra.Command{
 	Use:   "add",
 	Short: "add ingress rule for personal /32 ip: gaws sg add",
-	Long:  "add your /32 as an ingress rule to a security group",
-	Run: func(cmd *cobra.Command, args []string) {
-		if GroupIdInput == "" {
-			fmt.Println("group id not set. please add the group id with the '-g' flag")
-			os.Exit(1)
-		}
-		ip := util.GetPublicIp()
-		cidr := ip + "/32"
-		fmt.Println(ip)
+	Long:  "add your /32 as an ingress rule to a security group. specify the a larger range by adding the -r flag",
+	Run:   addLocalGroup,
+}
 
-		input := &ec2.AuthorizeSecurityGroupIngressInput{
-			GroupId: aws.String(GroupIdInput),
-			IpPermissions: []*ec2.IpPermission{
-				{
-					FromPort:   aws.Int64(22),
-					IpProtocol: aws.String("tcp"),
-					IpRanges: []*ec2.IpRange{
-						{
-							CidrIp:      aws.String(cidr),
-							Description: aws.String("IP by gaws - current location"),
-						},
+func addLocalGroup(cmd *cobra.Command, args []string) {
+	if GroupIDInput == "" {
+		fmt.Println("group id not set. please add the group id with the '-g' flag")
+		os.Exit(1)
+	}
+
+	ip := util.GetPublicIp()
+	var cidr string
+	if cidrRange != "" {
+		cidr = calculateCidrRange(ip, cidrRange)
+	} else {
+		cidr = ip + "/32"
+	}
+
+	input := &ec2.AuthorizeSecurityGroupIngressInput{
+		GroupId: aws.String(GroupIDInput),
+		IpPermissions: []*ec2.IpPermission{
+			{
+				FromPort:   aws.Int64(22),
+				IpProtocol: aws.String("tcp"),
+				IpRanges: []*ec2.IpRange{
+					{
+						CidrIp:      aws.String(cidr),
+						Description: aws.String("IP by gaws - current location"),
 					},
-					ToPort: aws.Int64(22),
 				},
+				ToPort: aws.Int64(22),
 			},
-		}
+		},
+	}
 
-		result, err := svc.AuthorizeSecurityGroupIngress(input)
-		if err != nil {
-			fmt.Println(err.Error())
-			os.Exit(1)
-		}
+	result, err := svc.AuthorizeSecurityGroupIngress(input)
+	if err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
 
-		fmt.Println(result)
-		return
-	},
+	fmt.Println(result)
+	return
+}
+
+func calculateCidrRange(ip string, cidr string) (ipRange string) {
+	//TODO: real cidr calculation - for now just make it a 24
+	parts := strings.Split(ip, ".")
+	parts[3] = "0"
+	ipRange = strings.Join(parts, ".") + "/24"
+	return ipRange
 }
 
 type gEC2 struct {
 	Client ec2iface.EC2API
 }
- /*
- 	Make an API call to aws with a possible filter on the 'group-name' value
- 	return the [un]filtered security groups
-  */
+
+/*
+	Make an API call to aws with a possible filter on the 'group-name' value
+	return the [un]filtered security groups
+*/
 func (c *gEC2) listSGs(args []string) *ec2.DescribeSecurityGroupsOutput {
 	value := fmt.Sprintf("*%s*", GroupNameFilter)
 	name := "group-name"
@@ -162,7 +185,7 @@ func (c *gEC2) listSGs(args []string) *ec2.DescribeSecurityGroupsOutput {
 
 /*
 	Format the security groups into output on the command line
- */
+*/
 func printListedSGs(sgOutput *ec2.DescribeSecurityGroupsOutput) {
 	fmt.Println("Security groups:")
 	for _, group := range sgOutput.SecurityGroups {
