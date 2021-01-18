@@ -19,7 +19,6 @@ var ec2Cmd = &cobra.Command{
 	Long:  `ec2 related actions`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		sess = util.Auth()
-		svc = ec2.New(sess)
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 
@@ -31,6 +30,7 @@ var ec2ListCmd = &cobra.Command{
 	Short: "list ec2s that are deployed",
 	Long:  `list ec2s that are deployed in your account associated with the region specified. Display the external IP address (if any), the private IP address and the security groups that are attached`,
 	Run: func(cmd *cobra.Command, args []string) {
+		svc := ec2.New(sess)
 		input := &ec2.DescribeInstancesInput{}
 		result, err := svc.DescribeInstances(input)
 		if err != nil {

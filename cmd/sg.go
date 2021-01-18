@@ -46,13 +46,15 @@ var sgCmd = &cobra.Command{
 	Long:  "list sgs, add an ip to sg ingress, remove sg ingress.. perhaps",
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		sess = util.Auth()
-		svc = ec2.New(sess)
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 
 	},
 }
 
+/*
+	Remove the sg group added by gaws via tag matching with the aws api
+*/
 var sgRemoveLocalGroup = &cobra.Command{
 	Use:   "rm",
 	Short: "wipe the gaws rules that have been added",
@@ -61,6 +63,7 @@ var sgRemoveLocalGroup = &cobra.Command{
 		input := &ec2.DescribeSecurityGroupsInput{
 			GroupIds: aws.StringSlice(args),
 		}
+		svc := ec2.New(sess)
 		result, err := svc.DescribeSecurityGroups(input)
 		if err != nil {
 			fmt.Println("cant get any of the groups")
@@ -77,14 +80,14 @@ var sgRemoveLocalGroup = &cobra.Command{
 					}
 					if *ip.Description == GawsRuleName {
 						fromPort := permission.FromPort
-						toPort := permission.ToPort 
-						
+						toPort := permission.ToPort
+
 						input := &ec2.RevokeSecurityGroupIngressInput{
 							GroupId:    group.GroupId,
 							IpProtocol: permission.IpProtocol,
 							CidrIp:     ip.CidrIp,
 							FromPort:   fromPort, //aws.Int64(22),
-							ToPort:     toPort, //aws.Int64(22),
+							ToPort:     toPort,   //aws.Int64(22),
 						}
 						req, resp := svc.RevokeSecurityGroupIngressRequest(input)
 						err := req.Send()
@@ -108,6 +111,9 @@ var sgAddLocalGroup = &cobra.Command{
 	Run:   addLocalGroup,
 }
 
+/*
+	Add sg group for local ip to current vpc via aws api
+*/
 func addLocalGroup(cmd *cobra.Command, args []string) {
 	if GroupIDInput == "" {
 		fmt.Println("group id not set. please add the group id with the '-g' flag")
@@ -143,6 +149,7 @@ func addLocalGroup(cmd *cobra.Command, args []string) {
 		},
 	}
 
+	svc := ec2.New(sess)
 	result, err := svc.AuthorizeSecurityGroupIngress(input)
 	if err != nil {
 		fmt.Println(err.Error())
@@ -165,7 +172,7 @@ func getPortRange(portRange string) (int64, int64) {
 	if portRange == "22" {
 		return 22, 22
 	}
-	r := strings.Split(portRange,"-")
+	r := strings.Split(portRange, "-")
 	if len(r) != 2 {
 		fmt.Println("portRange must be in the format of ##-##. ie 8000-8080")
 		panic("invalid port range")
@@ -263,6 +270,7 @@ var sgListGroups = &cobra.Command{
 	Short: "list sg groups: gwas sg list <sg a> <sg b> <etc>",
 	Long:  "list sg groups associated with the region one has set as an env variable",
 	Run: func(cmd *cobra.Command, args []string) {
+		svc := ec2.New(sess)
 		c := gEC2{Client: svc}
 		result := c.listSGs(args)
 		//DEBUG: fmt.Print(result)
