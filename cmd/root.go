@@ -8,7 +8,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-//defined here - used in sg, ec2 subcommands
 var (
 	sess *session.Session
 )

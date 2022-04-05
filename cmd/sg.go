@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/dechiad1/gaws/network"
 	"github.com/dechiad1/gaws/util"
 	"github.com/spf13/cobra"
 )
@@ -39,7 +39,6 @@ var (
 	portRange string = "22"
 )
 
-//commands
 var sgCmd = &cobra.Command{
 	Use:   "sg",
 	Short: "sg related actions",
@@ -53,8 +52,15 @@ var sgCmd = &cobra.Command{
 }
 
 /*
-	Remove the sg group added by gaws via tag matching with the aws api
+	SG commands
 */
+var sgAddLocalGroup = &cobra.Command{
+	Use:   "add",
+	Short: "add ingress rule for personal /32 ip: gaws sg add",
+	Long:  "add your /32 as an ingress rule to a security group. specify the a larger range by adding the -r flag",
+	Run:   addLocalGroup,
+}
+
 var sgRemoveLocalGroup = &cobra.Command{
 	Use:   "rm",
 	Short: "wipe the gaws rules that have been added",
@@ -104,11 +110,17 @@ var sgRemoveLocalGroup = &cobra.Command{
 	},
 }
 
-var sgAddLocalGroup = &cobra.Command{
-	Use:   "add",
-	Short: "add ingress rule for personal /32 ip: gaws sg add",
-	Long:  "add your /32 as an ingress rule to a security group. specify the a larger range by adding the -r flag",
-	Run:   addLocalGroup,
+var sgListGroups = &cobra.Command{
+	Use:   "list",
+	Short: "list sg groups: gwas sg list <sg a> <sg b> <etc>",
+	Long:  "list sg groups associated with the region one has set as an env variable",
+	Run: func(cmd *cobra.Command, args []string) {
+		svc := ec2.New(sess)
+		c := gEC2{Client: svc}
+		result := c.listSGs(args)
+		//DEBUG: fmt.Print(result)
+		printListedSGs(result)
+	},
 }
 
 /*
@@ -121,16 +133,16 @@ func addLocalGroup(cmd *cobra.Command, args []string) {
 	}
 
 	// obtain the IP address to add the rule for
-	ip := util.GetPublicIp()
+	ip := network.GetPublicIp()
 	var cidr string
 	if cidrRange != "" {
-		cidr = calculateCidrRange(ip, cidrRange)
+		cidr = network.CalculateCidrRange(ip, cidrRange)
 	} else {
 		cidr = ip + "/32"
 	}
 
 	// obtain the ports to add the rule for
-	fromPort, toPort := getPortRange(portRange)
+	fromPort, toPort := network.GetPortRange(portRange)
 
 	input := &ec2.AuthorizeSecurityGroupIngressInput{
 		GroupId: aws.String(GroupIDInput),
@@ -158,32 +170,6 @@ func addLocalGroup(cmd *cobra.Command, args []string) {
 
 	fmt.Println(result)
 	return
-}
-
-func calculateCidrRange(ip string, cidr string) (ipRange string) {
-	//TODO: real cidr calculation - for now just make it a 24
-	parts := strings.Split(ip, ".")
-	parts[3] = "0"
-	ipRange = strings.Join(parts, ".") + "/24"
-	return ipRange
-}
-
-func getPortRange(portRange string) (int64, int64) {
-	if portRange == "22" {
-		return 22, 22
-	}
-	r := strings.Split(portRange, "-")
-	if len(r) != 2 {
-		fmt.Println("portRange must be in the format of ##-##. ie 8000-8080")
-		panic("invalid port range")
-	}
-	fp, err := strconv.ParseInt(r[0], 10, 64) //string to parse, numerical base, size int (int64)
-	tp, err := strconv.ParseInt(r[1], 10, 64)
-	if err != nil {
-		fmt.Printf("%s, %s are not ints\n", r[0], r[1])
-		panic(err)
-	}
-	return fp, tp
 }
 
 type gEC2 struct {
@@ -263,17 +249,4 @@ func printListedSGs(sgOutput *ec2.DescribeSecurityGroupsOutput) {
 		}
 		du.PrintDisplay()
 	}
-}
-
-var sgListGroups = &cobra.Command{
-	Use:   "list",
-	Short: "list sg groups: gwas sg list <sg a> <sg b> <etc>",
-	Long:  "list sg groups associated with the region one has set as an env variable",
-	Run: func(cmd *cobra.Command, args []string) {
-		svc := ec2.New(sess)
-		c := gEC2{Client: svc}
-		result := c.listSGs(args)
-		//DEBUG: fmt.Print(result)
-		printListedSGs(result)
-	},
 }
